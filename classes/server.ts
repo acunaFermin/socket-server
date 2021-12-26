@@ -1,69 +1,58 @@
-import   express  from 'express' 
-import { SERVER_PORT } from '../global/env';
-import  http  from 'http';
-import { Socket } from 'dgram';
+import express from "express";
+import { SERVER_PORT } from "../global/env";
+import http from "http";
+import { Socket } from "dgram";
 
-
-
-import * as socket from '../sockets/sockets'
+import * as socket from "../sockets/sockets";
 
 export default class SocketServer {
+	private static _instance: SocketServer;
 
-    private static _instance: SocketServer
+	public app: express.Application;
+	public port: number;
 
-    public app: express.Application;
-    public port: number;
+	public io: any;
+	private httpServer: http.Server;
 
+	private constructor() {
+		this.app = express();
 
-    public io: Socket;
-    private httpServer : http.Server;
+		this.port = SERVER_PORT;
 
-    private constructor(){
+		// this.httpServer = new http.Server( this.app )
 
-        this.app = express();
+		this.httpServer = http.createServer(this.app);
 
-        this.port = SERVER_PORT;
+		// this.io = new socketIO.Server( this.httpServer )
 
-        // this.httpServer = new http.Server( this.app )
+		// this.io = new Server (this.httpServer)
 
-        this.httpServer = http.createServer(this.app)
+		this.io = require("socket.io")(this.httpServer);
 
-        // this.io = new socketIO.Server( this.httpServer )
+		this.escucharSockets();
+	}
 
-        // this.io = new Server (this.httpServer)
+	private escucharSockets() {
+		console.log("Escuchando conexiones");
 
-        this.io = require('socket.io')(this.httpServer)
+		this.io.on("connection", (cliente: any) => {
+			socket.conectarCliente(cliente, this.io);
 
-        this.escucharSockets();
+			socket.mensaje(cliente, this.io);
 
-    }
+			socket.mensajePrivado(cliente, this.io);
 
-    private escucharSockets(){
+			socket.configurarUsuario(cliente, this.io);
 
-        console.log('Escuchando conexiones')
+			socket.desconectar(cliente, this.io);
+		});
+	}
 
-        this.io.on('connection', (cliente: Socket) => {
+	start(callback: any) {
+		this.httpServer.listen(this.port, callback);
+	}
 
-
-
-            console.log( 'nuevo cliente conectado' )
-
-
-            socket.mensaje( cliente, this.io )
-
-
-            socket.desconectar( cliente )
-
-
-
-        })
-    }
-
-    start(callback:any){
-        this.httpServer.listen(this.port, callback)
-    }
-
-    public static get instance() {
-        return this._instance || ( this._instance = new this() );
-    }
+	public static get instance() {
+		return this._instance || (this._instance = new this());
+	}
 }
